@@ -35,8 +35,8 @@ main{max-width:720px;margin:0 auto;padding:12px 14px 30px;outline:none}
 .loading{color:var(--muted);text-align:center;margin-top:30vh}
 .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;background:var(--card);border-top:1px solid var(--line);
   padding-bottom:env(safe-area-inset-bottom)}
-.tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;height:var(--tabh);text-decoration:none;
-  color:var(--muted);font-family:var(--sans);font-size:12px;letter-spacing:.02em}
+.tabbar a{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;height:var(--tabh);text-decoration:none;
+  color:var(--muted);font-family:var(--sans);font-size:11.5px;letter-spacing:0;white-space:nowrap;-webkit-tap-highlight-color:transparent}
 .tabbar a .ti{font-size:22px;line-height:1.1}
 .tabbar a.on{color:var(--accent);font-weight:600}
 /* day navigator */
@@ -156,3 +156,13 @@ mark{background:#f3d38a;color:#2b2420;border-radius:2px}
 @keyframes flash{0%{background:#f3d38a}100%{background:transparent}}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabh) + 14px + env(safe-area-inset-bottom));background:var(--ink);color:var(--bg);
   font-family:var(--sans);font-size:14px;padding:9px 16px;border-radius:20px;z-index:9;opacity:.95}
+
+.daypick{display:flex;align-items:center;gap:8px;margin:2px 0 12px}
+.daypick button,.daypick a.navb{font-size:26px;width:44px;height:44px;flex:none;border-radius:22px;border:1px solid var(--line);background:var(--card);color:var(--accent);cursor:pointer;display:flex;align-items:center;justify-content:center;text-decoration:none}
+.daypick button:disabled{opacity:.3}
+.daypick .mid{flex:1;text-align:center;min-width:0}
+.daypick .mid b{display:block;font-size:19px;line-height:1.25}
+.daypick .mid small{font-family:var(--sans);font-size:13px;color:var(--muted)}
+.toclist a.cur{background:var(--soft);font-weight:600}
+.toclist a .dt{font-family:var(--sans);font-size:12px;color:var(--muted);float:right;margin-left:8px}
+@media (max-width:360px){.tabbar a{font-size:10.5px}.tabbar a .ti{font-size:20px}}

@@ -89,7 +89,7 @@ function familyBody(f) {
 }
 function familyCard(f, open) {
   if (!f) return `<div class="card"><summary><div class="when">7:00 PM · Family devotional</div>
-    <div class="ttl empty">No family devotional planned</div><div class="sub">The 60-day plan runs Nov 8, 2026 – Jan 6, 2027.</div></summary></div>`;
+    <div class="ttl empty">No family devotional planned</div><div class="sub">The 60-day plan runs Mon Nov 16, 2026 – Thu Jan 14, 2027 (see the Family tab).</div></summary></div>`;
   return `<details class="card"${open ? ' open' : ''}><summary><span class="more"></span>
     <div class="when">7:00 PM · Family devotional</div><div class="ttl">${esc(f.theme)}</div>
     <div class="sub">${esc(f.scriptureRef)} · Day ${esc(f.day)} of 60</div></summary>
@@ -289,9 +289,86 @@ async function viewDaysBook(it, n) {
   window.scrollTo(0, 0);
 }
 
+
+// ----- Catechism tab -----
+async function viewCatechism(itemId) {
+  const lib = await getJSON('data/library.json'), it = lib.find(x => x.id === 'catechism');
+  const data = await getJSON('data/catechism.json'), items = data.items;
+  if (itemId === 'list') {
+    const last = localStorage.getItem('catechismDay');
+    setChrome('Catechism', 'catechism', false);
+    $view.innerHTML = `<h2 style="margin:4px 0 0;font-size:23px">${esc(it.title)}</h2><p class="attr" style="margin:2px 0 6px">${esc(it.sub)}</p>
+      <div class="btnrow">${pdfBtn(it)}</div><p class="attr">Catechism text: ${esc(data.source)}</p>
+      <div class="toclist">${items.map(x => `<a href="#/catechism/${x.id}" class="${x.id === last ? 'cur' : ''}"><span class="dt">${esc(fmtShort(x.date))}</span><b>${esc(x.label)}</b> · ${esc(x.title)}${x.id === last ? ' <span class="chip">last read</span>' : ''}</a>`).join('')}</div>`;
+    window.scrollTo(0, 0); return;
+  }
+  const t = todayISO();
+  const byDate = (items.find(x => x.date === t) || (t < items[0].date ? items[0] : t > items[items.length - 1].date ? items[items.length - 1] : items[0])).id;
+  if (!itemId || !items.some(x => x.id === itemId)) {
+    // same calendar day: reopen the last day read; a new day: open that day's catechism by date
+    itemId = localStorage.getItem('catechismOpenedOn') === t && localStorage.getItem('catechismDay') || byDate;
+  }
+  if (!items.some(x => x.id === itemId)) itemId = items[0].id;
+  localStorage.setItem('catechismDay', itemId); localStorage.setItem('catechismOpenedOn', t);
+  const i = items.findIndex(x => x.id === itemId), x = items[i], prev = items[i - 1], next = items[i + 1];
+  setChrome('Catechism', 'catechism', false);
+  $view.innerHTML = `<div class="daypick">
+      <button id="cPrev" aria-label="Previous day" ${prev ? '' : 'disabled'}>‹</button>
+      <div class="mid"><b>${esc(x.label)} of ${items.length} · ${esc(fmtShort(x.date))}</b><small>${relLabel(x.date)} ${esc(x.title)}${x.id !== byDate ? ` · <a href="#/catechism/${byDate}">today’s</a>` : ''}</small></div>
+      <button id="cNext" aria-label="Next day" ${next ? '' : 'disabled'}>›</button></div>
+    <div class="btnrow" style="margin-top:0"><a class="btn" href="#/catechism/list">☰ All 30 days</a>${pdfBtn(it)}</div>
+    <div class="card"><div class="body" style="border-top:0;padding-top:12px">${x.html}</div></div>`;
+  if (prev) document.getElementById('cPrev').onclick = () => go(`#/catechism/${prev.id}`, true);
+  if (next) document.getElementById('cNext').onclick = () => go(`#/catechism/${next.id}`, true);
+  swipe(prev && `#/catechism/${prev.id}`, next && `#/catechism/${next.id}`);
+  window.scrollTo(0, 0);
+}
+// ----- Family tab -----
+async function viewFamily(arg) {
+  const lib = await getJSON('data/library.json'), it = lib.find(x => x.id === 'family-plan');
+  const data = await getJSON('data/days.json');
+  const list = Object.keys(data.days).sort().filter(d => data.days[d].family);
+  const t = todayISO();
+  if (arg === 'list') {
+    setChrome('Family', 'family', false);
+    $view.innerHTML = `<h2 style="margin:4px 0 0;font-size:23px">${esc(it.title)}</h2><p class="attr" style="margin:2px 0 6px">${esc(it.sub)}</p>
+      <div class="btnrow">${pdfBtn(it)}</div>
+      <div class="toclist">${list.map(d => { const f = data.days[d].family; return `<a id="f-${d}" href="#/family/${d}" class="${d === t ? 'cur' : ''}"><span class="dt">${esc(fmtShort(d))}</span><b>Day ${esc(f.day)}</b> · ${esc(f.theme)}</a>`; }).join('')}</div>`;
+    const cur = document.getElementById('f-' + t); if (cur) cur.scrollIntoView({block: 'center'}); else window.scrollTo(0, 0);
+    return;
+  }
+  let date = /^\d{4}-\d\d-\d\d$/.test(arg || '') ? arg : t;
+  if (date < list[0]) date = list[0];   // before the plan starts, open Day 1
+  if (date > list[list.length - 1]) date = list[list.length - 1];
+  if (!data.days[date] || !data.days[date].family) date = list[0];
+  const k = list.indexOf(date), f = data.days[date].family, prev = list[k - 1], next = list[k + 1];
+  setChrome('Family', 'family', false);
+  $view.innerHTML = `<div class="daypick">
+      <button id="fPrev" aria-label="Previous day" ${prev ? '' : 'disabled'}>‹</button>
+      <div class="mid"><b>${esc(fmtLong(date).replace(/, \d{4}$/, ''))}</b><small>${relLabel(date)} · Day ${esc(f.day)} of ${list.length}${t < list[0] && k === 0 ? ' · starts ' + (list[0] === addDays(t, 1) ? 'tomorrow' : esc(fmtShort(list[0]))) : ''}${date !== t && list.includes(t) ? ' · <a href="#/family">today</a>' : ''}</small></div>
+      <button id="fNext" aria-label="Next day" ${next ? '' : 'disabled'}>›</button></div>
+    <div class="btnrow" style="margin-top:0"><a class="btn" href="#/family/list">☰ All 60 days</a>${pdfBtn(it)}</div>
+    <div class="card"><div class="body" style="border-top:0;padding-top:4px"><h2 style="margin:12px 0 0">${esc(f.theme)}</h2>${familyBody(f)}
+    <p class="note-muted">The 7 PM plan for this day. The evening message may expand on it.</p></div></div>`;
+  if (prev) document.getElementById('fPrev').onclick = () => go(`#/family/${prev}`, true);
+  if (next) document.getElementById('fNext').onclick = () => go(`#/family/${next}`, true);
+  swipe(prev && `#/family/${prev}`, next && `#/family/${next}`);
+  window.scrollTo(0, 0);
+}
+function swipe(prevH, nextH) {
+  let x0 = null, y0 = null;
+  $view.ontouchstart = e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; };
+  $view.ontouchend = e => {
+    if (x0 == null) return;
+    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
+    if (Math.abs(dx) > 80 && Math.abs(dx) > 2 * Math.abs(dy)) { if (dx < 0 && nextH) go(nextH, true); if (dx > 0 && prevH) go(prevH, true); }
+  };
+}
+
 // ---------- router ----------
 async function route() {
   document.querySelectorAll('.toast').forEach(t => t.remove());
+  $view.ontouchstart = $view.ontouchend = null;
   const raw = location.hash.replace(/^#/, '') || '/today';
   const [path, qs] = raw.split('?');
   const q = new URLSearchParams(qs || '').get('q');
@@ -300,6 +377,8 @@ async function route() {
     if (p[0] === 'today' || !p[0]) await viewDay(todayISO());
     else if (p[0] === 'day' && /^\d{4}-\d\d-\d\d$/.test(p[1] || '')) await viewDay(p[1]);
     else if (p[0] === 'calendar') await viewCalendar();
+    else if (p[0] === 'catechism') await viewCatechism(p[1]);
+    else if (p[0] === 'family') await viewFamily(p[1]);
     else if (p[0] === 'library' && !p[1]) await viewLibrary();
     else if (p[0] === 'library' && p[1] === 'overview') { p[2] ? await viewOverviewSection(p[2], p[3], q) : await viewOverviewHome(null, q); }
     else if (p[0] === 'library') {
