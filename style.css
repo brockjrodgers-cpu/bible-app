@@ -171,3 +171,7 @@ mark{background:#f3d38a;color:#2b2420;border-radius:2px}
 .daytabs button{font-size:13.5px;padding:9px 2px}
 details.card.solo>summary{pointer-events:none;cursor:default}
 details.card.solo>summary .more{display:none}
+
+.pptext{font-family:var(--serif,Georgia,serif);font-size:18px;line-height:1.6}
+.pptext sup{font-size:11px;color:var(--muted);margin:0 2px 0 4px}
+.daytabs button{font-size:12.5px}

@@ -102,8 +102,42 @@ function familyCard(f, open) {
     <div class="body">${familyBody(f)}<p class="note-muted">This is the plan’s text. The evening message may expand on it.</p></div></details>`;
 }
 
+// ----- Psalm or Proverb of the Day -----
+let PP = null;
+async function getPP() { if (!PP) PP = await getJSON('data/pp.json'); return PP; }
+function ppBody(e) {
+  return `${e.note ? `<p class="kicker">${esc(e.note)}</p>` : ''}<div class="pptext">${e.verses.map(([v, t]) => `<sup>${v}</sup>${esc(t)}`).join(' ')}</div>
+    <div class="btnrow"><a class="btn" href="${esc(e.esv)}" target="_blank" rel="noopener">Read ${esc(e.ref)} in the ESV ↗</a></div>
+    <p class="note-muted">Text: King James Version (public domain). The ESV link opens esv.org.</p>`;
+}
+function ppCard(e) {
+  if (!e) return `<div class="card"><div class="ttl empty">No Psalm or Proverb for this day</div><div class="sub">The daily list starts Sun Nov 15, 2026.</div></div>`;
+  return `<details class="card" open><summary><div class="when">${e.kind === 'Psalm' ? 'Psalm' : 'Proverb'} of the Day</div><div class="ttl">${esc(e.ref)}</div>
+    <div class="sub"><a href="#/library/psalm-proverb">All days ›</a></div></summary><div class="body">${ppBody(e)}</div></details>`;
+}
+async function viewPP(it, date) {
+  const pp = await getPP(), t = todayISO(), max = addDays(t, AHEAD);
+  const list = Object.keys(pp.days).sort().filter(d => d <= max);
+  if (!date || !pp.days[date] || date > max) {
+    setChrome(it.title, 'library', true);
+    $view.innerHTML = `<h2 style="margin:4px 0 0;font-size:23px">${esc(it.title)}</h2><p class="attr" style="margin:2px 0 6px">${esc(it.sub)}</p>
+      <p class="note-muted">Newest first · up to a week ahead</p>
+      <div class="toclist">${list.slice().reverse().map(d => `<a href="#/library/psalm-proverb/${d}" class="${d === t ? 'cur' : ''}"><b>${esc(fmtShort(d))}</b> · ${esc(pp.days[d].ref)}${pp.days[d].note ? ' (' + esc(pp.days[d].note) + ')' : ''}</a>`).join('')}</div>`;
+    const cur = $view.querySelector('.cur'); if (cur) cur.scrollIntoView({block: 'center'});
+    return;
+  }
+  const e = pp.days[date], k = list.indexOf(date), prev = list[k - 1], next = list[k + 1];
+  setChrome(e.ref, 'library', true);
+  $view.innerHTML = `<div class="btnrow" style="margin-top:0"><a class="btn" href="#/library/psalm-proverb">☰ All days</a><a class="btn" href="#/day/${date}">Open ${esc(fmtShort(date))}</a></div>
+    <p class="attr">${esc(fmtLong(date))} · ${e.kind === 'Psalm' ? 'Psalm' : 'Proverb'} of the Day</p>
+    <h2 style="margin:4px 0">${esc(e.ref)}</h2><div class="body">${ppBody(e)}</div>
+    <div class="pager">${prev ? `<a href="#/library/psalm-proverb/${prev}">‹ ${esc(fmtShort(prev))}</a>` : '<span></span>'}${next ? `<a class="nx" href="#/library/psalm-proverb/${next}">${esc(fmtShort(next))} ›</a>` : '<span></span>'}</div>`;
+  swipe(prev && `#/library/psalm-proverb/${prev}`, next && `#/library/psalm-proverb/${next}`);
+  window.scrollTo(0, 0);
+}
+
 // ---------- views ----------
-const DAYTABS = [['book', 'Book · 4:30'], ['tidbit', 'Tidbit · 7 AM'], ['family', 'Family · 7 PM']];
+const DAYTABS = [['book', 'Book · 4:30'], ['tidbit', 'Tidbit · 7 AM'], ['family', 'Family · 7 PM'], ['pp', 'Psalm/Prov.']];
 function currentDayTab() {
   // same calendar day: keep the tab last chosen; a fresh day: pick by time of day
   const saved = localStorage.getItem('dayTab');
@@ -119,6 +153,7 @@ async function viewDay(date) {
   if (date > max) { date = max; setTimeout(() => toast('You can look up to a week ahead.'), 50); }
   setChrome(date === t ? 'Today' : fmtShort(date), 'today', false);
   const d = data.days[date] || {};
+  const pp = await getPP().catch(() => null), ppE = pp && pp.days[date];
   const prev = addDays(date, -1), next = addDays(date, 1);
   $view.innerHTML = `
     <div class="daynav">
@@ -133,6 +168,7 @@ async function viewDay(date) {
     book: () => devoCard(d.devo, true, date),
     tidbit: () => tidbitCard(d.tidbit, date),
     family: () => familyCard(d.family, true),
+    pp: () => ppCard(ppE),
   };
   const show = k => {
     $view.querySelectorAll('.daytabs button').forEach(b => { b.classList.toggle('on', b.dataset.k === k); b.setAttribute('aria-selected', b.dataset.k === k); });
@@ -179,6 +215,7 @@ async function viewCalendar() {
         ${d.devo ? `<div><span>Book</span>${esc(d.devo.book)}: ${esc(d.devo.title)}</div>` : ''}
         ${q ? `<div><span>Tidbit</span>${esc(q.author)}${d.tidbit.read ? ' · ' + esc(d.tidbit.read.title) : ''}</div>` : ''}
         ${d.family ? `<div><span>Family</span>${esc(d.family.theme)} · ${esc(d.family.scriptureRef)}</div>` : ''}
+        ${d.pp ? `<div><span>${d.pp.kind === 'Psalm' ? 'Psalm' : 'Proverb'}</span>${esc(d.pp.ref)}</div>` : ''}
       </div></a>`;
   }
   $view.innerHTML = html;
@@ -413,6 +450,7 @@ async function route() {
       const lib = await getJSON('data/library.json'), it = lib.find(x => x.id === p[1]);
       if (!it) await viewLibrary();
       else if (it.type === 'list') await viewList(it, p[2]);
+      else if (it.type === 'pp') await viewPP(it, p[2]);
       else if (it.type === 'days' || it.type === 'family') await viewDaysBook(it, p[2]);
       else await viewLibrary();
     } else await viewDay(todayISO());
