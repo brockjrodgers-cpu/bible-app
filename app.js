@@ -97,6 +97,14 @@ function familyCard(f, open) {
 }
 
 // ---------- views ----------
+const DAYTABS = [['book', 'Book · 4:30'], ['tidbit', 'Tidbit · 7 AM'], ['family', 'Family · 7 PM']];
+function currentDayTab() {
+  // same calendar day: keep the tab last chosen; a fresh day: pick by time of day
+  const saved = localStorage.getItem('dayTab');
+  if (saved && localStorage.getItem('dayTabOn') === todayISO() && DAYTABS.some(([k]) => k === saved)) return saved;
+  const h = new Date().getHours();
+  return h < 7 ? 'book' : h < 19 ? 'tidbit' : 'family';
+}
 async function viewDay(date) {
   const data = await getJSON('data/days.json');
   const t = todayISO();
@@ -112,10 +120,24 @@ async function viewDay(date) {
       <div class="d"><b>${esc(fmtLong(date).replace(/, \d{4}$/, ''))}</b><small>${relLabel(date)} ${date !== t ? '· <a href="#/today">back to today</a>' : ''}</small></div>
       <button id="nextDay" aria-label="Next day" ${next > max ? 'disabled' : ''}>›</button>
     </div>
-    ${devoCard(d.devo, true)}
-    ${tidbitCard(d.tidbit, date)}
-    ${familyCard(d.family, false)}
+    <div class="seg daytabs" role="tablist">${DAYTABS.map(([k, l]) => `<button role="tab" data-k="${k}">${l}</button>`).join('')}</div>
+    <div id="dayPanel"></div>
     <p class="note-muted">Swipe or use the arrows for other days · <a href="#/calendar">all days</a></p>`;
+  const panels = {
+    book: () => devoCard(d.devo, true),
+    tidbit: () => tidbitCard(d.tidbit, date),
+    family: () => familyCard(d.family, true),
+  };
+  const show = k => {
+    $view.querySelectorAll('.daytabs button').forEach(b => { b.classList.toggle('on', b.dataset.k === k); b.setAttribute('aria-selected', b.dataset.k === k); });
+    const panel = document.getElementById('dayPanel');
+    panel.innerHTML = panels[k]();
+    panel.querySelectorAll('details.card').forEach(el => { el.open = true; el.classList.add('solo'); });
+  };
+  show(currentDayTab());
+  $view.querySelectorAll('.daytabs button').forEach(b => b.onclick = () => {
+    localStorage.setItem('dayTab', b.dataset.k); localStorage.setItem('dayTabOn', todayISO()); show(b.dataset.k);
+  });
   document.getElementById('prevDay').onclick = () => go(`#/day/${prev}`);
   document.getElementById('nextDay').onclick = () => go(`#/day/${next}`);
   // swipe between days
@@ -245,7 +267,7 @@ async function viewOverviewSection(id, anchor, q) {
   if (target) { target.scrollIntoView({block: 'center'}); if (anchor) target.classList.add('flash'); } else window.scrollTo(0, 0);
 }
 
-// ----- list-style books (catechism, psalms, songs) -----
+// ----- list-style books (catechism) -----
 async function viewList(it, itemId) {
   const data = await getJSON(it.data);
   const items = data.items;
@@ -412,17 +434,26 @@ route();
 
 // ---------- service worker ----------
 if ('serviceWorker' in navigator) {
+  // Updates: the new worker skips waiting and claims this page; we reload once when control changes.
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return;   // first install: nothing stale to replace
+    reloading = true;
+    sessionStorage.setItem('justUpdated', '1');
+    location.reload();
+  });
+  if (sessionStorage.getItem('justUpdated')) { sessionStorage.removeItem('justUpdated'); setTimeout(() => toast('Updated with the latest readings'), 300); }
   addEventListener('load', () => {
-    const hadController = !!navigator.serviceWorker.controller;
-    navigator.serviceWorker.register('sw.js').then(reg => {
+    navigator.serviceWorker.register('sw.js', {updateViaCache: 'none'}).then(reg => {
+      const nudge = w => w && w.postMessage('skipWaiting');
+      nudge(reg.waiting);
       reg.addEventListener('updatefound', () => {
         const nw = reg.installing;
-        nw && nw.addEventListener('statechange', () => {
-          if (nw.state === 'activated' && hadController) {
-            Object.keys(cache).forEach(k => delete cache[k]); route(); toast('Updated with the latest readings');
-          }
-        });
+        nw && nw.addEventListener('statechange', () => { if (nw.state === 'installed') nudge(nw); });
       });
+      // check for a new version whenever the app is brought back to the front
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
     }).catch(e => console.warn('SW registration failed', e));
   });
 }
