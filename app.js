@@ -47,13 +47,19 @@ function toast(msg) {
 }
 
 // ---------- renderers for daily items ----------
+// Christ in All the Scriptures volumes, from data/days.json meta.devoVolumes (Vol 1 Nov 16 - Dec 15, Vol 2 Dec 16 - 24, ...)
+let DEVO_VOLS = [];
+function devoVolsText() {
+  if (!DEVO_VOLS.length) return 'Volume 1 (Genesis–Amos) runs Mon Nov 16 – Tue Dec 15, 2026, one book a day.';
+  return DEVO_VOLS.map(v => `Vol. ${v.vol} (${v.books}) runs ${fmtShort(v.first)} – ${fmtShort(v.last)}`).join('; ') + ', one book a day.';
+}
 function devoCard(d, open, date) {
   if (!d) return `<div class="card"><summary><div class="when">4:30 AM · Bible book devotional</div>
-    <div class="ttl empty">${date && date < '2026-11-16' ? 'Starts Mon Nov 16' : 'No book devotional for this day'}</div><div class="sub">Volume 1 (Genesis–Amos) runs Mon Nov 16 – Tue Dec 15, 2026, one book a day.</div></summary></div>`;
+    <div class="ttl empty">${date && date < '2026-11-16' ? 'Starts Mon Nov 16' : 'No book devotional for this day'}</div><div class="sub">${esc(devoVolsText())}</div></summary></div>`;
   return `<details class="card"${open ? ' open' : ''}><summary><span class="more"></span>
     <div class="when">4:30 AM · Christ in All the Scriptures</div>
     <div class="ttl">${esc(d.book)}: ${esc(d.title.replace(d.book + ': ', ''))}</div>
-    <div class="sub">Day ${d.n} of ${d.of}</div></summary><div class="body">${d.html}</div></details>`;
+    <div class="sub">${d.vol ? 'Vol. ' + d.vol + ' · ' : ''}Day ${d.n} of ${d.of}</div></summary><div class="body">${d.html}</div></details>`;
 }
 function tidbitCard(t, date) {
   const head = `<div class="when">7:00 AM · Theology tidbit</div>`;
@@ -106,7 +112,7 @@ function currentDayTab() {
   return h < 7 ? 'book' : h < 19 ? 'tidbit' : 'family';
 }
 async function viewDay(date) {
-  const data = await getJSON('data/days.json');
+  const data = await getJSON('data/days.json'); DEVO_VOLS = (data.meta && data.meta.devoVolumes) || DEVO_VOLS;
   const t = todayISO();
   const min = data.meta.first, max = addDays(t, AHEAD);
   if (date < min) date = min;
@@ -156,7 +162,7 @@ function go(h, replace) { if (replace) location.replace(h); else location.hash =
 
 async function viewCalendar() {
   setChrome('All days', 'calendar', false);
-  const data = await getJSON('data/days.json');
+  const data = await getJSON('data/days.json'); DEVO_VOLS = (data.meta && data.meta.devoVolumes) || DEVO_VOLS;
   const t = todayISO(), max = addDays(t, AHEAD);
   let html = '', month = '';
   const dates = Object.keys(data.days).filter(d => d <= max).sort().reverse();
@@ -291,9 +297,9 @@ async function viewList(it, itemId) {
 }
 // ----- day-based books (Vol 1, family plan) -----
 async function viewDaysBook(it, n) {
-  const data = await getJSON('data/days.json');
+  const data = await getJSON('data/days.json'); DEVO_VOLS = (data.meta && data.meta.devoVolumes) || DEVO_VOLS;
   const key = it.type === 'days' ? 'devo' : 'family';
-  const list = Object.keys(data.days).sort().filter(d => data.days[d][key]).map(d => ({date: d, x: data.days[d][key]}));
+  const list = Object.keys(data.days).sort().filter(d => data.days[d][key] && (key !== 'devo' || !it.vol || (data.days[d].devo.vol || 1) === it.vol)).map(d => ({date: d, x: data.days[d][key]}));
   if (!n) {
     setChrome(it.title, 'library', true);
     $view.innerHTML = `<h2 style="margin:4px 0 0;font-size:23px">${esc(it.title)}</h2><p class="attr" style="margin:2px 0 6px">${esc(it.sub)}</p>
@@ -301,7 +307,7 @@ async function viewDaysBook(it, n) {
     return;
   }
   const k = Number(n) - 1, e = list[k]; if (!e) return viewDaysBook(it);
-  setChrome(key === 'devo' ? `Day ${e.x.n}: ${e.x.book}` : e.x.theme, 'library', true);
+  setChrome(key === 'devo' ? `${it.vol ? 'Vol. ' + it.vol + ' · ' : ''}Day ${e.x.n}: ${e.x.book}` : e.x.theme, 'library', true);
   const prev = list[k - 1], next = list[k + 1];
   $view.innerHTML = `<div class="btnrow" style="margin-top:0"><a class="btn" href="#/library/${it.id}">☰ All days</a><a class="btn" href="#/day/${e.date}">Open ${esc(fmtShort(e.date))}</a></div>
     <p class="attr">${esc(fmtLong(e.date))}</p>
@@ -348,7 +354,7 @@ async function viewCatechism(itemId) {
 // ----- Family tab -----
 async function viewFamily(arg) {
   const lib = await getJSON('data/library.json'), it = lib.find(x => x.id === 'family-plan');
-  const data = await getJSON('data/days.json');
+  const data = await getJSON('data/days.json'); DEVO_VOLS = (data.meta && data.meta.devoVolumes) || DEVO_VOLS;
   const list = Object.keys(data.days).sort().filter(d => data.days[d].family);
   const t = todayISO();
   if (arg === 'list') {
