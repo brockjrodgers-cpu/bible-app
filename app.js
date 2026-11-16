@@ -47,9 +47,9 @@ function toast(msg) {
 }
 
 // ---------- renderers for daily items ----------
-function devoCard(d, open) {
+function devoCard(d, open, date) {
   if (!d) return `<div class="card"><summary><div class="when">4:30 AM · Bible book devotional</div>
-    <div class="ttl empty">No book devotional for this day</div><div class="sub">Volume 1 (Genesis–Amos) runs Nov 9 – Dec 8, 2026.</div></summary></div>`;
+    <div class="ttl empty">${date && date < '2026-11-16' ? 'Starts Mon Nov 16' : 'No book devotional for this day'}</div><div class="sub">Volume 1 (Genesis–Amos) runs Mon Nov 16 – Tue Dec 15, 2026, one book a day.</div></summary></div>`;
   return `<details class="card"${open ? ' open' : ''}><summary><span class="more"></span>
     <div class="when">4:30 AM · Christ in All the Scriptures</div>
     <div class="ttl">${esc(d.book)}: ${esc(d.title.replace(d.book + ': ', ''))}</div>
@@ -124,7 +124,7 @@ async function viewDay(date) {
     <div id="dayPanel"></div>
     <p class="note-muted">Swipe or use the arrows for other days · <a href="#/calendar">all days</a></p>`;
   const panels = {
-    book: () => devoCard(d.devo, true),
+    book: () => devoCard(d.devo, true, date),
     tidbit: () => tidbitCard(d.tidbit, date),
     family: () => familyCard(d.family, true),
   };
