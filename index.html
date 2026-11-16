@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Daily Bible</title>
+<meta name="description" content="Daily Bible devotionals, family devotionals, theology tidbits, and a library of Bible studies.">
+<meta name="theme-color" content="#6e3a1f">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/favicon-64.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <button class="iconbtn" id="backBtn" aria-label="Back" hidden>‹</button>
+  <h1 id="pageTitle">Daily Bible</h1>
+  <button class="iconbtn" id="themeBtn" aria-label="Toggle dark mode" title="Light / dark">◐</button>
+</header>
+<main id="view" tabindex="-1"><p class="loading">Loading…</p></main>
+<nav class="tabbar" aria-label="Main">
+  <a href="#/today" data-tab="today"><span class="ti">☀︎</span><span>Today</span></a>
+  <a href="#/calendar" data-tab="calendar"><span class="ti">▦</span><span>All days</span></a>
+  <a href="#/library" data-tab="library"><span class="ti">❦</span><span>Library</span></a>
+</nav>
+<script src="app.js"></script>
+</body>
+</html>
